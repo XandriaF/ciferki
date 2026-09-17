@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Циферки — количественный анализ</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Циферки</h1>
+    <p class="subtitle">Помощник для количественного анализа: расчёт, проверка допущений и пояснения по методологии</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>1. Данные</h2>
+      <p class="hint">Форматы: CSV или Excel (.xlsx). Первая строка — названия столбцов, десятичный разделитель — точка.</p>
+      <input type="file" id="file" accept=".csv,.txt,.xlsx">
+      <div class="file-info" id="file-info"></div>
+    </section>
+
+    <section class="card hidden" id="step-setup">
+      <h2>2. Настройка анализа</h2>
+      <div class="grid">
+        <label>Анализируемая переменная (числовая)
+          <select id="value-col"></select>
+        </label>
+        <label>Группирующая переменная (ровно 2 группы)
+          <select id="group-col"></select>
+        </label>
+        <label>Уровень значимости α
+          <select id="alpha">
+            <option value="0.05" selected>0,05</option>
+            <option value="0.01">0,01</option>
+            <option value="0.10">0,10</option>
+          </select>
+        </label>
+      </div>
+      <button id="run">Рассчитать</button>
+      <p class="hint">Процедура: описательные статистики → нормальность (Шапиро–Уилк) → однородность дисперсий (Левен) → выбор теста (Стьюдент / Уэлч / Манн–Уитни) → размер эффекта.</p>
+    </section>
+
+    <section class="card hidden" id="step-result">
+      <h2>3. Результат</h2>
+      <div id="result"></div>
+    </section>
+
+    <div class="error hidden" id="error"></div>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

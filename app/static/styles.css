@@ -1,0 +1,210 @@
+:root {
+  --bg: #f5f6f8;
+  --card: #ffffff;
+  --border: #dfe3e8;
+  --text: #1f2933;
+  --muted: #5b6770;
+  --accent: #2f6fb0;
+  --ok: #1a7f4b;
+  --warn: #b45309;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", -apple-system, Roboto, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+header {
+  padding: 32px 24px 8px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.subtitle {
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px 24px 48px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+}
+
+h2 {
+  margin-top: 0;
+  font-size: 18px;
+}
+
+h3 {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+
+h4 {
+  font-size: 14px;
+  margin: 12px 0 4px;
+}
+
+.hidden {
+  display: none;
+}
+
+.hint,
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.file-info {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+select,
+input[type="file"] {
+  font: inherit;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+}
+
+button {
+  font: inherit;
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+}
+
+th,
+td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+th {
+  background: #f0f3f6;
+  font-weight: 600;
+}
+
+.block {
+  margin: 16px 0;
+}
+
+.callout {
+  border-left: 4px solid var(--accent);
+  background: #eef4fa;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.callout-ok {
+  border-left-color: var(--ok);
+  background: #edf7f1;
+}
+
+.callout-neutral {
+  border-left-color: var(--muted);
+  background: #f2f4f6;
+}
+
+.badge {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 10px;
+}
+
+.badge-ok {
+  background: #d8f0e2;
+  color: var(--ok);
+}
+
+.badge-warn {
+  background: #fdecd8;
+  color: var(--warn);
+}
+
+.error {
+  border-left: 4px solid #b91c1c;
+  background: #fdeaea;
+  color: #7f1d1d;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-top: 16px;
+}
+
+.procedure summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.step {
+  margin: 12px 0;
+}
+
+.step p {
+  margin: 4px 0;
+}
+
+.decision {
+  color: var(--muted);
+}
+
+.refs {
+  font-size: 13px;
+  color: var(--muted);
+  padding-left: 20px;
+}
