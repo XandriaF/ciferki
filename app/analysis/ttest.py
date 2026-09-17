@@ -179,7 +179,7 @@ def run(df: pd.DataFrame, value_col: str, group_col: str, alpha: float = 0.05) -
         reason = (
             "Хотя бы в одной группе выявлено отклонение от нормального распределения: "
             "основным выбран непараметрический U-тест Манна-Уитни; t-тест приведён справочно. "
-            "При больших выборках (n >= 30 в каждой группе) t-тест устойчив к умеренным "
+            "При больших выборках (n ≥ 30 в каждой группе) t-тест устойчив к умеренным "
             "отклонениям от нормальности (центральная предельная теорема)."
         )
 
@@ -190,7 +190,7 @@ def run(df: pd.DataFrame, value_col: str, group_col: str, alpha: float = 0.05) -
             direction = "выше" if primary["mean_diff"] > 0 else "ниже"
             conclusion = (
                 f"Различия статистически значимы (t = {_fmt(primary['t'], 3)}, "
-                f"df = {_fmt(primary['df'], 1)}, p {_fmt_p(primary['p'])} при a = {_fmt(alpha)}). "
+                f"df = {_fmt(primary['df'], 1)}, p {_fmt_p(primary['p'])} при α = {_fmt(alpha)}). "
                 f"Среднее значение в группе «{label_a}» (M = {_fmt(desc_a['mean'])}, "
                 f"SD = {_fmt(desc_a['sd'])}) {direction}, чем в группе «{label_b}» "
                 f"(M = {_fmt(desc_b['mean'])}, SD = {_fmt(desc_b['sd'])}). "
@@ -200,7 +200,7 @@ def run(df: pd.DataFrame, value_col: str, group_col: str, alpha: float = 0.05) -
             direction = "выше" if primary["median_diff"] > 0 else "ниже"
             conclusion = (
                 f"Различия статистически значимы (U = {_fmt(primary['u'], 1)}, "
-                f"p {_fmt_p(primary['p'])} при a = {_fmt(alpha)}). "
+                f"p {_fmt_p(primary['p'])} при α = {_fmt(alpha)}). "
                 f"Медиана в группе «{label_a}» (Md = {_fmt(desc_a['median'])}) {direction}, "
                 f"чем в группе «{label_b}» (Md = {_fmt(desc_b['median'])}). "
                 f"Размер эффекта: рангово-бисериальная корреляция "
@@ -209,7 +209,7 @@ def run(df: pd.DataFrame, value_col: str, group_col: str, alpha: float = 0.05) -
     else:
         conclusion = (
             f"Статистически значимых различий не обнаружено ({primary['name']}: "
-            f"p {_fmt_p(primary['p'])} при a = {_fmt(alpha)}). "
+            f"p {_fmt_p(primary['p'])} при α = {_fmt(alpha)}). "
             "Наблюдаемые различия групп могут объясняться случайной вариацией выборки."
         )
 
@@ -233,11 +233,11 @@ def run(df: pd.DataFrame, value_col: str, group_col: str, alpha: float = 0.05) -
             "title": "Шаг 3. Проверка нормальности (тест Шапиро-Уилка)",
             "text": f"{_normality_text(label_a, norm_a)}; {_normality_text(label_b, norm_b)}.",
             "decision": (
-                "H0 теста: распределение нормальное. "
+                "H₀ теста: распределение нормальное. "
                 + (
-                    "Отклонений от нормальности не выявлено в обеих группах (p > a)."
+                    "Отклонений от нормальности не выявлено в обеих группах (p > α)."
                     if normal_ok
-                    else "Нормальность отклонена хотя бы в одной группе (p <= a)."
+                    else "Нормальность отклонена хотя бы в одной группе (p ≤ α)."
                 )
             ),
         },
@@ -245,11 +245,11 @@ def run(df: pd.DataFrame, value_col: str, group_col: str, alpha: float = 0.05) -
             "title": "Шаг 4. Проверка однородности дисперсий (Левен по медиане, Браун-Форсайт)",
             "text": f"F = {_fmt(float(levene.statistic), 3)}, p {_fmt_p(float(levene.pvalue))}.",
             "decision": (
-                "H0 теста: дисперсии равны. "
+                "H₀ теста: дисперсии равны. "
                 + (
-                    "Дисперсии признаны однородными (p > a)."
+                    "Дисперсии признаны однородными (p > α)."
                     if variance_ok
-                    else "Дисперсии неоднородны (p <= a)."
+                    else "Дисперсии неоднородны (p ≤ α)."
                 )
             ),
         },

@@ -1,0 +1,15 @@
+{
+  "total_count": 2,
+  "secrets": [
+    {
+      "name": "SERVER_HOST",
+      "created_at": "2026-09-17T08:27:07Z",
+      "updated_at": "2026-09-17T08:27:07Z"
+    },
+    {
+      "name": "SERVER_PASSWORD",
+      "created_at": "2026-09-17T08:27:28Z",
+      "updated_at": "2026-09-17T08:27:28Z"
+    }
+  ]
+}

@@ -1,0 +1,169 @@
+﻿2026-09-17T08:30:47.9769549Z Current runner version: '2.337.0'
+2026-09-17T08:30:47.9806378Z ##[group]Runner Image Provisioner
+2026-09-17T08:30:47.9807496Z Hosted Compute Agent
+2026-09-17T08:30:47.9808309Z Version: 20260828.587
+2026-09-17T08:30:47.9809196Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-09-17T08:30:47.9810092Z Build Date: 2026-08-28T16:44:25Z
+2026-09-17T08:30:47.9810923Z Worker ID: {e2a32f4e-ea61-41a9-b1a5-890ad6a88190}
+2026-09-17T08:30:47.9811980Z Azure Region: westcentralus
+2026-09-17T08:30:47.9813393Z ##[endgroup]
+2026-09-17T08:30:47.9816396Z ##[group]Operating System
+2026-09-17T08:30:47.9817148Z Ubuntu
+2026-09-17T08:30:47.9818010Z 24.04.5
+2026-09-17T08:30:47.9818858Z LTS
+2026-09-17T08:30:47.9819487Z ##[endgroup]
+2026-09-17T08:30:47.9820365Z ##[group]Runner Image
+2026-09-17T08:30:47.9821036Z Image: ubuntu-24.04
+2026-09-17T08:30:47.9821915Z Version: 20260907.300.1
+2026-09-17T08:30:47.9823592Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260907.300/images/ubuntu/Ubuntu2404-Readme.md
+2026-09-17T08:30:47.9826462Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260907.300
+2026-09-17T08:30:47.9828452Z ##[endgroup]
+2026-09-17T08:30:47.9830919Z ##[group]GITHUB_TOKEN Permissions
+2026-09-17T08:30:47.9834038Z Contents: read
+2026-09-17T08:30:47.9835565Z Metadata: read
+2026-09-17T08:30:47.9836689Z Packages: read
+2026-09-17T08:30:47.9837953Z ##[endgroup]
+2026-09-17T08:30:47.9840939Z Secret source: Actions
+2026-09-17T08:30:47.9842749Z Cache mode: write
+2026-09-17T08:30:47.9844366Z Prepare workflow directory
+2026-09-17T08:30:48.0234371Z Prepare all required actions
+2026-09-17T08:30:48.0335669Z Complete job name: deploy
+2026-09-17T08:30:48.1122552Z ##[group]Run sudo apt-get update -qq
+2026-09-17T08:30:48.1123427Z [36;1msudo apt-get update -qq[0m
+2026-09-17T08:30:48.1124324Z [36;1msudo apt-get install -y -qq sshpass[0m
+2026-09-17T08:30:48.1125965Z [36;1msshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$SERVER_HOST" 'bash -s' <<'REMOTE'[0m
+2026-09-17T08:30:48.1127166Z [36;1mset -e[0m
+2026-09-17T08:30:48.1127930Z [36;1mif [ ! -d /opt/ciferki/.git ]; then[0m
+2026-09-17T08:30:48.1128747Z [36;1m  apt-get update -y[0m
+2026-09-17T08:30:48.1129585Z [36;1m  apt-get install -y git[0m
+2026-09-17T08:30:48.1130485Z [36;1m  git clone https://github.com/XandriaF/ciferki.git /opt/ciferki[0m
+2026-09-17T08:30:48.1131453Z [36;1mfi[0m
+2026-09-17T08:30:48.1132081Z [36;1mbash /opt/ciferki/deploy/setup.sh[0m
+2026-09-17T08:30:48.1132817Z [36;1mREMOTE[0m
+2026-09-17T08:30:48.1815639Z shell: /usr/bin/bash -e {0}
+2026-09-17T08:30:48.1816879Z env:
+2026-09-17T08:30:48.1817655Z   SERVER_HOST: ***
+2026-09-17T08:30:48.1818541Z   SSHPASS: ***
+2026-09-17T08:30:48.1819164Z ##[endgroup]
+2026-09-17T08:30:54.7375674Z Warning: Permanently added '***' (ED25519) to the list of known hosts.
+2026-09-17T08:30:57.9504098Z Hit:1 http://zabbix.repo.timeweb.ru/ubuntu focal InRelease
+2026-09-17T08:30:57.9505051Z Hit:2 http://mirror.timeweb.ru/ubuntu resolute InRelease
+2026-09-17T08:30:57.9805488Z Get:3 http://security.ubuntu.com/ubuntu resolute-security InRelease [137 kB]
+2026-09-17T08:30:57.9821686Z Hit:4 http://archive.ubuntu.com/ubuntu resolute InRelease
+2026-09-17T08:30:58.0249862Z Get:5 http://archive.ubuntu.com/ubuntu resolute-updates InRelease [137 kB]
+2026-09-17T08:30:58.0912549Z Hit:6 https://download.docker.com/linux/ubuntu resolute InRelease
+2026-09-17T08:30:58.1903815Z Get:7 http://security.ubuntu.com/ubuntu resolute-security/main amd64 Packages [477 kB]
+2026-09-17T08:30:58.2017048Z Hit:8 http://archive.ubuntu.com/ubuntu resolute-backports InRelease
+2026-09-17T08:30:58.2433920Z Get:9 http://archive.ubuntu.com/ubuntu resolute-updates/main amd64 Packages [613 kB]
+2026-09-17T08:30:58.3293527Z Get:10 http://security.ubuntu.com/ubuntu resolute-security/main Translation-en [112 kB]
+2026-09-17T08:30:58.3540592Z Get:11 http://archive.ubuntu.com/ubuntu resolute-updates/universe amd64 Packages [294 kB]
+2026-09-17T08:30:58.7301282Z Fetched 1771 kB in 1s (3113 kB/s)
+2026-09-17T08:31:00.0567640Z Reading package lists...
+2026-09-17T08:31:00.1048573Z Reading package lists...
+2026-09-17T08:31:00.4412289Z Building dependency tree...
+2026-09-17T08:31:00.4420301Z Reading state information...
+2026-09-17T08:31:00.5184215Z git is already the newest version (1:2.53.0-1ubuntu1).
+2026-09-17T08:31:00.6295997Z Solving dependencies...
+2026-09-17T08:31:00.9515541Z 0 upgraded, 0 newly installed, 0 to remove and 39 not upgraded.
+2026-09-17T08:31:00.9532101Z Cloning into '/opt/ciferki'...
+2026-09-17T08:31:01.8510555Z == 1/6. Пакеты ==
+2026-09-17T08:31:02.0787541Z Hit:1 http://zabbix.repo.timeweb.ru/ubuntu focal InRelease
+2026-09-17T08:31:02.0788765Z Hit:2 http://mirror.timeweb.ru/ubuntu resolute InRelease
+2026-09-17T08:31:02.1227263Z Hit:3 http://security.ubuntu.com/ubuntu resolute-security InRelease
+2026-09-17T08:31:02.1316950Z Hit:4 http://archive.ubuntu.com/ubuntu resolute InRelease
+2026-09-17T08:31:02.1732165Z Hit:5 http://archive.ubuntu.com/ubuntu resolute-updates InRelease
+2026-09-17T08:31:02.2150441Z Hit:6 http://archive.ubuntu.com/ubuntu resolute-backports InRelease
+2026-09-17T08:31:02.2638016Z Hit:7 https://download.docker.com/linux/ubuntu resolute InRelease
+2026-09-17T08:31:03.6558655Z Reading package lists...
+2026-09-17T08:31:03.6954242Z Reading package lists...
+2026-09-17T08:31:04.0235322Z Building dependency tree...
+2026-09-17T08:31:04.0241426Z Reading state information...
+2026-09-17T08:31:04.0945123Z nginx is already the newest version (1.28.3-2ubuntu1.11).
+2026-09-17T08:31:04.0946484Z git is already the newest version (1:2.53.0-1ubuntu1).
+2026-09-17T08:31:04.1974916Z Solving dependencies...
+2026-09-17T08:31:04.5551496Z The following additional packages will be installed:
+2026-09-17T08:31:04.5553458Z   python3-pip-whl python3-setuptools-whl python3.14-venv
+2026-09-17T08:31:04.5984903Z The following NEW packages will be installed:
+2026-09-17T08:31:04.5988055Z   python3-pip-whl python3-setuptools-whl python3-venv python3.14-venv
+2026-09-17T08:31:04.7159120Z 0 upgraded, 4 newly installed, 0 to remove and 39 not upgraded.
+2026-09-17T08:31:04.7160098Z Need to get 2610 kB of archives.
+2026-09-17T08:31:04.7160796Z After this operation, 2958 kB of additional disk space will be used.
+2026-09-17T08:31:04.7162217Z Get:1 http://archive.ubuntu.com/ubuntu resolute/universe amd64 python3-pip-whl all 25.1.1+dfsg-1ubuntu2 [1430 kB]
+2026-09-17T08:31:05.0081434Z Get:2 http://archive.ubuntu.com/ubuntu resolute/universe amd64 python3-setuptools-whl all 78.1.1-0.1build1 [1174 kB]
+2026-09-17T08:31:05.0299082Z Get:3 http://archive.ubuntu.com/ubuntu resolute-updates/universe amd64 python3.14-venv amd64 3.14.4-1ubuntu0.2 [5356 B]
+2026-09-17T08:31:05.0300780Z Get:4 http://archive.ubuntu.com/ubuntu resolute/universe amd64 python3-venv amd64 3.14.3-0ubuntu2 [1032 B]
+2026-09-17T08:31:05.3619619Z debconf: unable to initialize frontend: Dialog
+2026-09-17T08:31:05.3620457Z debconf: (TERM is not set, so the dialog frontend is not usable.)
+2026-09-17T08:31:05.3621153Z debconf: falling back to frontend: Readline
+2026-09-17T08:31:05.3848376Z debconf: unable to initialize frontend: Readline
+2026-09-17T08:31:05.3849088Z debconf: (This frontend requires a controlling tty.)
+2026-09-17T08:31:05.3849647Z debconf: falling back to frontend: Teletype
+2026-09-17T08:31:05.3984477Z debconf: unable to initialize frontend: Teletype
+2026-09-17T08:31:05.3985751Z debconf: (This frontend requires a controlling tty.)
+2026-09-17T08:31:05.3986701Z debconf: falling back to frontend: Noninteractive
+2026-09-17T08:31:05.5604866Z Fetched 2610 kB in 0s (6476 kB/s)
+2026-09-17T08:31:05.5874191Z Selecting previously unselected package python3-pip-whl.
+2026-09-17T08:31:05.5897600Z (Reading database ... 
+2026-09-17T08:31:05.5898349Z (Reading database ... 5%
+2026-09-17T08:31:05.5899054Z (Reading database ... 10%
+2026-09-17T08:31:05.5899738Z (Reading database ... 15%
+2026-09-17T08:31:05.5900693Z (Reading database ... 20%
+2026-09-17T08:31:05.5901679Z (Reading database ... 25%
+2026-09-17T08:31:05.5902299Z (Reading database ... 30%
+2026-09-17T08:31:05.5902904Z (Reading database ... 35%
+2026-09-17T08:31:05.5916250Z (Reading database ... 40%
+2026-09-17T08:31:05.5916760Z (Reading database ... 45%
+2026-09-17T08:31:05.5952190Z (Reading database ... 50%
+2026-09-17T08:31:05.5974654Z (Reading database ... 55%
+2026-09-17T08:31:05.6020775Z (Reading database ... 60%
+2026-09-17T08:31:05.6058084Z (Reading database ... 65%
+2026-09-17T08:31:05.6114140Z (Reading database ... 70%
+2026-09-17T08:31:05.7288280Z (Reading database ... 75%
+2026-09-17T08:31:05.7288988Z (Reading database ... 80%
+2026-09-17T08:31:05.7289633Z (Reading database ... 85%
+2026-09-17T08:31:05.7290289Z (Reading database ... 90%
+2026-09-17T08:31:05.7290970Z (Reading database ... 95%
+2026-09-17T08:31:05.7291643Z (Reading database ... 100%
+2026-09-17T08:31:05.7292699Z (Reading database ... 138215 files and directories currently installed.)
+2026-09-17T08:31:05.7294135Z Preparing to unpack .../python3-pip-whl_25.1.1+dfsg-1ubuntu2_all.deb ...
+2026-09-17T08:31:05.7295725Z Unpacking python3-pip-whl (25.1.1+dfsg-1ubuntu2) ...
+2026-09-17T08:31:05.7545330Z Selecting previously unselected package python3-setuptools-whl.
+2026-09-17T08:31:05.7655555Z Preparing to unpack .../python3-setuptools-whl_78.1.1-0.1build1_all.deb ...
+2026-09-17T08:31:05.7693630Z Unpacking python3-setuptools-whl (78.1.1-0.1build1) ...
+2026-09-17T08:31:05.8169387Z Selecting previously unselected package python3.14-venv.
+2026-09-17T08:31:05.8290855Z Preparing to unpack .../python3.14-venv_3.14.4-1ubuntu0.2_amd64.deb ...
+2026-09-17T08:31:05.8321148Z Unpacking python3.14-venv (3.14.4-1ubuntu0.2) ...
+2026-09-17T08:31:05.8659900Z Selecting previously unselected package python3-venv.
+2026-09-17T08:31:05.8755066Z Preparing to unpack .../python3-venv_3.14.3-0ubuntu2_amd64.deb ...
+2026-09-17T08:31:05.8776729Z Unpacking python3-venv (3.14.3-0ubuntu2) ...
+2026-09-17T08:31:05.9267359Z Setting up python3-setuptools-whl (78.1.1-0.1build1) ...
+2026-09-17T08:31:05.9350850Z Setting up python3-pip-whl (25.1.1+dfsg-1ubuntu2) ...
+2026-09-17T08:31:05.9431797Z Setting up python3.14-venv (3.14.4-1ubuntu0.2) ...
+2026-09-17T08:31:06.0479399Z Setting up python3-venv (3.14.3-0ubuntu2) ...
+2026-09-17T08:31:08.1940665Z == 2/6. Пользователь сервиса ==
+2026-09-17T08:31:08.2413069Z == 3/6. Код ==
+2026-09-17T08:31:08.7702004Z Already up to date.
+2026-09-17T08:31:08.7707005Z == 4/6. Python-окружение ==
+2026-09-17T08:31:39.6111648Z == 5/6. Автозапуск (systemd) ==
+2026-09-17T08:31:39.9625904Z Created symlink '/etc/systemd/system/multi-user.target.wants/ciferki.service' → '/etc/systemd/system/ciferki.service'.
+2026-09-17T08:31:40.3524605Z == 6/6. Nginx ==
+2026-09-17T08:31:40.6678940Z Rule added
+2026-09-17T08:31:40.6679273Z Rule added (v6)
+2026-09-17T08:31:40.6964845Z nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+2026-09-17T08:31:40.6978930Z nginx: configuration file /etc/nginx/nginx.conf test is successful
+2026-09-17T08:31:40.7292029Z 
+2026-09-17T08:31:40.7292221Z ==============================
+2026-09-17T08:31:41.0673026Z ● ciferki.service - Ciferki - сервис количественного анализа
+2026-09-17T08:31:41.0673976Z      Loaded: loaded (/etc/systemd/system/ciferki.service; enabled; preset: enabled)
+2026-09-17T08:31:41.0675262Z      Active: active (running) since Thu 2026-09-17 08:31:40 UTC; 396ms ago
+2026-09-17T08:31:41.0675923Z  Invocation: c30353d9f34b4e369e3e811674f7a7d9
+2026-09-17T08:31:41.0676413Z    Main PID: 657623 (uvicorn)
+2026-09-17T08:31:41.0676817Z       Tasks: 2 (limit: 1648)
+2026-09-17T08:31:41.0677215Z      Memory: 37.2M (peak: 37.2M)
+2026-09-17T08:31:41.0677536Z         CPU: 390ms
+2026-09-17T08:31:41.0677841Z      CGroup: /system.slice/ciferki.service
+2026-09-17T08:31:41.0678853Z              └─657623 /opt/ciferki/.venv/bin/python3 /opt/ciferki/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+2026-09-17T08:31:41.0680019Z ==============================
+2026-09-17T08:31:41.0978053Z Проверка health: 
+2026-09-17T08:31:41.0979019Z Сервис доступен: http://***:8080
+2026-09-17T08:31:41.1163947Z Cleaning up orphan processes
