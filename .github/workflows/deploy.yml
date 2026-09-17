@@ -11,15 +11,26 @@ jobs:
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SSHPASS: ${{ secrets.SERVER_PASSWORD }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass
-          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$SERVER_HOST" 'bash -s' <<'REMOTE'
-          set -e
-          if [ ! -d /opt/ciferki/.git ]; then
-            apt-get update -y
-            apt-get install -y git
-            git clone https://github.com/XandriaF/ciferki.git /opt/ciferki
+          if [ -z "$ADMIN_PASSWORD" ]; then
+            echo "::error::Секрет ADMIN_PASSWORD не задан (Settings -> Secrets and variables -> Actions)"
+            exit 1
           fi
-          bash /opt/ciferki/deploy/setup.sh
+          ENV_B64=$(printf 'ADMIN_USERNAME=admin\nADMIN_PASSWORD=%s\n' "$ADMIN_PASSWORD" | base64 -w0)
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$SERVER_HOST" 'bash -s' <<REMOTE
+          set -e
+          cd /opt/ciferki
+          git pull --ff-only
+          echo '$ENV_B64' | base64 -d > .env
+          chmod 600 .env
+          DC="docker compose"
+          docker compose version >/dev/null 2>&1 || DC="docker-compose"
+          if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
+            ufw allow 8081/tcp >/dev/null
+          fi
+          \$DC up -d --build
+          \$DC ps
           REMOTE
