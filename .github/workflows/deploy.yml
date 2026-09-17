@@ -23,7 +23,7 @@ jobs:
           sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$SERVER_HOST" 'bash -s' <<REMOTE
           set -e
           cd /opt/ciferki
-          git pull --ff-only
+          git -c safe.directory=/opt/ciferki pull --ff-only
           echo '$ENV_B64' | base64 -d > .env
           chmod 600 .env
           DC="docker compose"
