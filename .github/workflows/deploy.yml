@@ -1,0 +1,25 @@
+name: Deploy to server
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SSHPASS: ${{ secrets.SERVER_PASSWORD }}
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$SERVER_HOST" 'bash -s' <<'REMOTE'
+          set -e
+          if [ ! -d /opt/ciferki/.git ]; then
+            apt-get update -y
+            apt-get install -y git
+            git clone https://github.com/XandriaF/ciferki.git /opt/ciferki
+          fi
+          bash /opt/ciferki/deploy/setup.sh
+          REMOTE
