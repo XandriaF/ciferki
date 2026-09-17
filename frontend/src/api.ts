@@ -38,5 +38,11 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
+  renameUser: (id: number, display_name: string) =>
+    apiFetch(`/api/users/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ display_name }),
+    }),
   deleteUser: (id: number) => apiFetch(`/api/users/${id}`, { method: "DELETE" }),
 };

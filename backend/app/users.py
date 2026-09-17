@@ -46,6 +46,26 @@ def create_user(payload: NewUser, _: dict = Depends(admin_user)) -> dict:
     return {"ok": True}
 
 
+class RenameUser(BaseModel):
+    display_name: str
+
+
+@router.patch("/{user_id}")
+def rename_user(user_id: int, payload: RenameUser, _: dict = Depends(admin_user)) -> dict:
+    name = payload.display_name.strip()
+    if not name:
+        raise HTTPException(400, "Имя не может быть пустым")
+    conn = connect()
+    try:
+        if conn.execute("SELECT 1 FROM users WHERE id = ?", (user_id,)).fetchone() is None:
+            raise HTTPException(404, "Пользователь не найден")
+        conn.execute("UPDATE users SET display_name = ? WHERE id = ?", (name, user_id))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
 @router.delete("/{user_id}")
 def delete_user(user_id: int, admin: dict = Depends(admin_user)) -> dict:
     if user_id == admin["id"]:

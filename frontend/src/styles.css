@@ -195,6 +195,18 @@ button.link.danger {
   font-weight: 600;
 }
 
+.table .link {
+  color: var(--accent);
+}
+
+.table .link.danger {
+  color: var(--danger);
+}
+
+.table .actions button + button {
+  margin-left: 12px;
+}
+
 .login-wrap {
   display: flex;
   align-items: center;

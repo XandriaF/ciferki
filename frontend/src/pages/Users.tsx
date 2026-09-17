@@ -49,6 +49,17 @@ export default function UsersPage() {
     }
   };
 
+  const rename = async (user: UserRow) => {
+    const name = prompt("Новое имя:", user.display_name);
+    if (!name || !name.trim() || name.trim() === user.display_name) return;
+    try {
+      await api.renameUser(user.id, name.trim());
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка переименования");
+    }
+  };
+
   const remove = async (id: number) => {
     if (!confirm("Удалить пользователя?")) return;
     try {
@@ -114,7 +125,10 @@ export default function UsersPage() {
                 <td>{user.username}</td>
                 <td>{user.display_name}</td>
                 <td>{user.is_admin ? "Администратор" : "Участник"}</td>
-                <td>
+                <td className="actions">
+                  <button className="link" onClick={() => rename(user)}>
+                    Переименовать
+                  </button>
                   <button className="link danger" onClick={() => remove(user.id)}>
                     Удалить
                   </button>
