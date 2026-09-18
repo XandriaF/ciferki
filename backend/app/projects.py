@@ -10,7 +10,7 @@ from .analysis.top2 import compute_top2
 from .auth import current_user
 from .db import UPLOADS_DIR, connect, utcnow
 from .export import build_project_export
-from .parsing import analyze_table, build_dataframe, read_matrix
+from .parsing import PARSER_VERSION, analyze_table, build_dataframe, read_matrix
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -151,7 +151,14 @@ def _upload_dataframe(upload_row, settings: dict):
         matrix = read_matrix(upload_row["filename"], path.read_bytes())
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    structure = json.loads(upload_row["structure"]) if upload_row["structure"] else analyze_table(matrix)
+    structure = None
+    if upload_row["structure"]:
+        try:
+            structure = json.loads(upload_row["structure"])
+        except (TypeError, ValueError):
+            structure = None
+    if not structure or structure.get("version") != PARSER_VERSION:
+        structure = analyze_table(matrix)
     file_settings = (settings.get("files", {}) or {}).get(str(upload_row["id"]), {})
     types = file_settings.get("types", settings.get("types", {}))
     return build_dataframe(matrix, structure, {"types": types}), structure

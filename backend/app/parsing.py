@@ -65,6 +65,8 @@ MISSING_VALUES = {
 
 TOP2_MIN_BY_SCALE = {"agreement5": 4, "pro_me4": 3, "pro_me3": 2}
 
+PARSER_VERSION = 3
+
 MATRIX_RE = re.compile(r"^(\d+)\.\s*Matrix[,，]?\s*(.*)$")
 BASE_MATRIX_RE = re.compile(r"^[Qq](\d+)_r(\d+)$")
 CHOICE_RE = re.compile(r"^(\d+)\.\s*Choice")
@@ -222,6 +224,7 @@ def analyze_table(matrix: list) -> dict:
     labels = matrix[header_row + 1] if data_start > header_row + 1 else None
     columns = classify_columns(headers, labels, matrix, data_start)
     return {
+        "version": PARSER_VERSION,
         "format": detect_format(headers),
         "header_row": header_row,
         "data_start": data_start,

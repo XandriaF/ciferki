@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 
 from .auth import current_user
 from .db import UPLOADS_DIR, connect, utcnow
-from .parsing import analyze_table, read_matrix
+from .parsing import PARSER_VERSION, analyze_table, read_matrix
 
 router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 
@@ -105,7 +105,14 @@ def preview(upload_id: int, _: dict = Depends(current_user)) -> dict:
         raise HTTPException(404, "Файл отсутствует в архиве")
     try:
         matrix = read_matrix(row["filename"], path.read_bytes())
-        structure = json.loads(row["structure"]) if row["structure"] else analyze_table(matrix)
+        structure = None
+        if row["structure"]:
+            try:
+                structure = json.loads(row["structure"])
+            except (TypeError, ValueError):
+                structure = None
+        if not structure or structure.get("version") != PARSER_VERSION:
+            structure = analyze_table(matrix)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     start = structure["data_start"]
