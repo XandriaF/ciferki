@@ -36,6 +36,24 @@ const FLAG_CLASS: Record<string, string> = {
   "нет данных": "flag-none",
 };
 
+const NORM_LABELS: Record<string, string> = {
+  q3: "Q3 по концептам файла",
+  median: "медиана по концептам файла",
+  manual: "фиксированная (вручную)",
+  pool_q3: "Q3 по пулу волн",
+  pool_median: "медиана по пулу волн",
+};
+
+const WAVE_MODE_LABELS: Record<string, string> = {
+  independent: "полные выборки (независимые)",
+  panel: "панель — одни и те же респонденты",
+  panel_lag: "панель с окном по времени",
+};
+
+const fmtPct = (value: any) => (value === null || value === undefined ? "—" : `${String(value).replace(".", ",")}%`);
+const fmtSigned = (value: any) =>
+  value === null || value === undefined ? "—" : `${value > 0 ? "+" : ""}${String(value).replace(".", ",")}`;
+
 export default function ProjectPage() {
   const { projectId } = useParams();
   const id = Number(projectId);
@@ -72,6 +90,18 @@ export default function ProjectPage() {
   const [taskResult, setTaskResult] = useState<any>(null);
   const [taskConfig, setTaskConfig] = useState<any>(null);
 
+  const [waveMode, setWaveMode] = useState("independent");
+  const [waveMainKey, setWaveMainKey] = useState("");
+  const [wavePrevKey, setWavePrevKey] = useState("");
+  const [waveMainDate, setWaveMainDate] = useState("");
+  const [wavePrevDate, setWavePrevDate] = useState("");
+  const [waveLagMin, setWaveLagMin] = useState("0");
+  const [waveLagMax, setWaveLagMax] = useState("3650");
+  const [prevConceptMap, setPrevConceptMap] = useState<Record<string, string>>({});
+  const [metricMap, setMetricMap] = useState<Record<string, string>>({});
+  const [waveResult, setWaveResult] = useState<any>(null);
+  const [waveConfig, setWaveConfig] = useState<any>(null);
+
   const [analysisColumn, setAnalysisColumn] = useState("");
   const [freq, setFreq] = useState<any>(null);
 
@@ -95,6 +125,8 @@ export default function ProjectPage() {
 
   const mainStructure = meta?.main_structure;
   const files: any[] = meta?.files || [];
+  const prevFile = files.find((file) => file.role === "previous_wave");
+  const prevStructure = prevFile?.structure || null;
 
   const matrixGroups = useMemo(() => {
     if (!mainStructure) return [] as string[];
@@ -124,6 +156,53 @@ export default function ProjectPage() {
     }
     if (allMetrics.length && metrics.length === 0) setMetrics(allMetrics);
   }, [matrixGroups, allMetrics]);
+
+  const prevMatrixGroups = useMemo(() => {
+    if (!prevStructure) return [] as string[];
+    const groups: string[] = [];
+    (prevStructure.columns || []).forEach((column: any) => {
+      if (column.type === "matrix" && column.group && !groups.includes(column.group)) groups.push(column.group);
+    });
+    return groups;
+  }, [prevStructure]);
+
+  const prevMetrics = useMemo(() => {
+    if (!prevStructure) return [] as string[];
+    const list: string[] = [];
+    (prevStructure.columns || []).forEach((column: any) => {
+      if (column.type === "matrix" && column.option && !list.includes(column.option)) list.push(column.option);
+    });
+    return list;
+  }, [prevStructure]);
+
+  const mainColumns = useMemo(
+    () => (mainStructure ? mainStructure.columns.map((column: any) => column.name) : []),
+    [mainStructure]
+  );
+  const prevColumns = useMemo(
+    () => (prevStructure ? (prevStructure.columns || []).map((column: any) => column.name) : []),
+    [prevStructure]
+  );
+
+  useEffect(() => {
+    if (!prevStructure || !prevMatrixGroups.length) return;
+    setPrevConceptMap((current) => {
+      if (Object.keys(current).length) return current;
+      const initial: Record<string, string> = {};
+      prevMatrixGroups.forEach((group, index) => {
+        initial[group] = conceptMap[matrixGroups[index]] || `Концепт ${index + 1}`;
+      });
+      return initial;
+    });
+    setMetricMap((current) => {
+      if (Object.keys(current).length) return current;
+      const initial: Record<string, string> = {};
+      allMetrics.forEach((metric) => {
+        initial[metric] = prevMetrics.includes(metric) ? metric : "";
+      });
+      return initial;
+    });
+  }, [prevStructure, prevMatrixGroups, allMetrics, prevMetrics, conceptMap, matrixGroups]);
 
   useEffect(() => {
     setStepPreview(null);
@@ -285,6 +364,23 @@ export default function ProjectPage() {
     const saved = step.params || {};
     try {
       const response = await api.runTask(id, saved.task, saved.config, false);
+      if (saved.task === "wave_compare") {
+        setTask("wave_compare");
+        setWaveMode(saved.config.mode || "independent");
+        setConceptMap(saved.config.concept_map || {});
+        setPrevConceptMap(saved.config.prev_concept_map || {});
+        setMetricMap(saved.config.metric_map || {});
+        setMetrics(saved.config.metrics || []);
+        setWaveMainKey(saved.config.main_key || "");
+        setWavePrevKey(saved.config.prev_key || "");
+        setWaveMainDate(saved.config.main_date || "");
+        setWavePrevDate(saved.config.prev_date || "");
+        setWaveLagMin(String(saved.config.lag_min_days ?? 0));
+        setWaveLagMax(String(saved.config.lag_max_days ?? 3650));
+        setWaveResult(response.result);
+        setWaveConfig(saved.config);
+        return;
+      }
       setTask("top2_norms");
       setConceptMap(saved.config.concept_map || {});
       setMetrics(saved.config.metrics || []);
@@ -310,6 +406,46 @@ export default function ProjectPage() {
     try {
       const blob = await api.exportProject(id, { column: analysisColumn || null });
       downloadBlob(blob, "ciferki_export.xlsx");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка экспорта");
+    }
+  };
+
+  const buildWaveConfig = () => ({
+    mode: waveMode,
+    concept_map: conceptMap,
+    prev_concept_map: prevConceptMap,
+    metric_map: Object.fromEntries(Object.entries(metricMap).filter(([, value]) => value)),
+    metrics,
+    main_key: waveMainKey,
+    prev_key: wavePrevKey,
+    main_date: waveMainDate,
+    prev_date: wavePrevDate,
+    lag_min_days: Number(waveLagMin) || 0,
+    lag_max_days: Number(waveLagMax) || 3650,
+    alpha: 0.05,
+  });
+
+  const runWaveTask = async () => {
+    const config = buildWaveConfig();
+    setBusy(true);
+    setError("");
+    try {
+      const response = await api.runTask(id, "wave_compare", config, true);
+      setWaveResult(response.result);
+      setWaveConfig(config);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка сравнения волн");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const exportWave = async () => {
+    try {
+      const blob = await api.exportProject(id, { task: { task: "wave_compare", config: waveConfig } });
+      downloadBlob(blob, "ciferki_waves.xlsx");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка экспорта");
     }
@@ -351,6 +487,7 @@ export default function ProjectPage() {
   }
 
   const hasMainFile = files.some((file) => file.role === "main");
+  const hasPrevWave = files.some((file) => file.role === "previous_wave");
 
   return (
     <div>
@@ -567,9 +704,16 @@ export default function ProjectPage() {
                 или вручную).
               </p>
             </div>
-            <div className="task-card disabled">
+            <div
+              className={`task-card ${task === "wave_compare" ? "active" : ""} ${hasPrevWave ? "" : "disabled"}`}
+              onClick={() => hasPrevWave && setTask("wave_compare")}
+            >
               <b>Сравнение с предыдущей волной</b>
-              <p className="muted">Скоро: сопоставление концептов между волнами, с временным лагом и без.</p>
+              <p className="muted">
+                {hasPrevWave
+                  ? "Top2% обеих волн, разница и значимость: полные выборки, панель или панель с окном по времени."
+                  : "Привяжите файл предыдущей волны (роль «Предыдущая волна») — задача станет доступна."}
+              </p>
             </div>
           </div>
 
@@ -613,10 +757,36 @@ export default function ProjectPage() {
                   файла
                 </label>
                 <label className="checkbox">
-                  <input type="radio" checked={normMode === "manual"} onChange={() => setNormMode("manual")} /> Задать
-                  вручную
+                  <input type="radio" checked={normMode === "median"} onChange={() => setNormMode("median")} /> Медиана
+                  по концептам файла
                 </label>
+                <label className="checkbox">
+                  <input type="radio" checked={normMode === "manual"} onChange={() => setNormMode("manual")} />{" "}
+                  Фиксированная (вручную)
+                </label>
+                {hasPrevWave && (
+                  <>
+                    <label className="checkbox">
+                      <input type="radio" checked={normMode === "pool_q3"} onChange={() => setNormMode("pool_q3")} /> Q3
+                      по пулу волн
+                    </label>
+                    <label className="checkbox">
+                      <input
+                        type="radio"
+                        checked={normMode === "pool_median"}
+                        onChange={() => setNormMode("pool_median")}
+                      />{" "}
+                      Медиана по пулу волн
+                    </label>
+                  </>
+                )}
               </div>
+              {!hasPrevWave && (
+                <p className="muted">
+                  Норму по пулу волн можно посчитать, привязав к проекту файл предыдущей волны (роль «Предыдущая
+                  волна»).
+                </p>
+              )}
               {normMode === "manual" && (
                 <div className="row">
                   {metrics.map((metric) => (
@@ -647,8 +817,8 @@ export default function ProjectPage() {
               {taskResult && (
                 <div className="analysis-result">
                   <p className="muted">
-                    Норма: {taskResult.norm_mode === "q3" ? "Q3 по концептам файла" : "задана вручную"} · α ={" "}
-                    {taskResult.alpha} · Top2 = «Скорее согласен(а)» + «Полностью согласен (а)»
+                    Норма: {NORM_LABELS[taskResult.norm_mode] || taskResult.norm_mode} · α = {taskResult.alpha} ·
+                    Top2 = верхние 2 категории шкалы
                   </p>
                   <table className="table">
                     <thead>
@@ -691,6 +861,226 @@ export default function ProjectPage() {
                           })}
                         </Fragment>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {task === "wave_compare" && mainStructure && prevStructure && (
+            <div className="task-config">
+              <h4>Режим сравнения</h4>
+              <div className="row">
+                <label className="checkbox">
+                  <input
+                    type="radio"
+                    checked={waveMode === "independent"}
+                    onChange={() => setWaveMode("independent")}
+                  />{" "}
+                  Полные выборки (независимые)
+                </label>
+                <label className="checkbox">
+                  <input type="radio" checked={waveMode === "panel"} onChange={() => setWaveMode("panel")} /> Одни и те
+                  же респонденты (панель)
+                </label>
+                <label className="checkbox">
+                  <input
+                    type="radio"
+                    checked={waveMode === "panel_lag"}
+                    onChange={() => setWaveMode("panel_lag")}
+                  />{" "}
+                  Панель с окном по времени
+                </label>
+              </div>
+
+              {waveMode !== "independent" && (
+                <div className="row">
+                  <label>
+                    Ключ — текущая волна
+                    <select value={waveMainKey} onChange={(event) => setWaveMainKey(event.target.value)}>
+                      <option value="">— выберите —</option>
+                      {mainColumns.map((name: string) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Ключ — прошлая волна
+                    <select value={wavePrevKey} onChange={(event) => setWavePrevKey(event.target.value)}>
+                      <option value="">— выберите —</option>
+                      {prevColumns.map((name: string) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {waveMode === "panel_lag" && (
+                    <>
+                      <label>
+                        Дата — текущая
+                        <select value={waveMainDate} onChange={(event) => setWaveMainDate(event.target.value)}>
+                          <option value="">— выберите —</option>
+                          {mainColumns.map((name: string) => (
+                            <option key={name} value={name}>
+                              {name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Дата — прошлая
+                        <select value={wavePrevDate} onChange={(event) => setWavePrevDate(event.target.value)}>
+                          <option value="">— выберите —</option>
+                          {prevColumns.map((name: string) => (
+                            <option key={name} value={name}>
+                              {name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Лаг от, дней
+                        <input
+                          value={waveLagMin}
+                          onChange={(event) => setWaveLagMin(event.target.value)}
+                          style={{ width: 90 }}
+                        />
+                      </label>
+                      <label>
+                        до, дней
+                        <input
+                          value={waveLagMax}
+                          onChange={(event) => setWaveLagMax(event.target.value)}
+                          style={{ width: 90 }}
+                        />
+                      </label>
+                    </>
+                  )}
+                </div>
+              )}
+
+              <h4>Концепты прошлой волны</h4>
+              <div className="row">
+                {prevMatrixGroups.map((group) => (
+                  <label key={group}>
+                    {group}
+                    <input
+                      value={prevConceptMap[group] || ""}
+                      onChange={(event) => setPrevConceptMap({ ...prevConceptMap, [group]: event.target.value })}
+                    />
+                  </label>
+                ))}
+              </div>
+
+              <h4>Сопоставление метрик (текущая → прошлая)</h4>
+              <div className="metrics-list">
+                {metrics.map((metric) => (
+                  <label key={metric} className="metric-map-row">
+                    {metric}
+                    <select
+                      value={metricMap[metric] ?? ""}
+                      onChange={(event) => setMetricMap({ ...metricMap, [metric]: event.target.value })}
+                    >
+                      <option value="">— не сопоставлена —</option>
+                      {prevMetrics.map((prevMetric) => (
+                        <option key={prevMetric} value={prevMetric}>
+                          {prevMetric}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
+
+              <div className="row" style={{ marginTop: 12 }}>
+                <button onClick={runWaveTask} disabled={busy || !metrics.length}>
+                  {busy ? "Считаем…" : "Сравнить волны"}
+                </button>
+                {waveResult && (
+                  <button className="secondary" onClick={exportWave}>
+                    Excel с формулами
+                  </button>
+                )}
+              </div>
+
+              {waveResult && (
+                <div className="analysis-result">
+                  <p className="muted">
+                    Режим: {WAVE_MODE_LABELS[waveResult.mode] || waveResult.mode} · α = {waveResult.alpha}
+                    {waveResult.matched_total !== null &&
+                      ` · совпало ID: ${waveResult.matched_total}, в расчёте: ${waveResult.matched_used}`}
+                    {waveResult.lag &&
+                      ` · окно лага: ${waveResult.lag.min}–${waveResult.lag.max} дн., медиана ${
+                        waveResult.lag.median_days ?? "—"
+                      }, исключено ${waveResult.lag.excluded}`}
+                  </p>
+                  {(waveResult.warnings || []).map((warning: string, index: number) => (
+                    <div key={index} className="notice">
+                      {warning}
+                    </div>
+                  ))}
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Метрика</th>
+                        <th>N₁</th>
+                        <th>Top2 волна 1</th>
+                        <th>N₂</th>
+                        <th>Top2 волна 2</th>
+                        <th>Разница</th>
+                        <th>95% ДИ разницы</th>
+                        {waveResult.mode !== "independent" && <th>↑ / ↓</th>}
+                        <th>p</th>
+                        <th>Вывод</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {waveResult.concepts.map((concept: string) => {
+                        const conceptCells = waveResult.cells?.[concept] || {};
+                        const metricsWithData = waveResult.metrics.filter((metric: string) => conceptCells[metric]);
+                        if (!metricsWithData.length) return null;
+                        return (
+                          <Fragment key={concept}>
+                            <tr className="metric-row">
+                              <td colSpan={waveResult.mode !== "independent" ? 10 : 9}>{concept}</td>
+                            </tr>
+                            {metricsWithData.map((metric: string) => {
+                              const cell = conceptCells[metric];
+                              return (
+                                <tr key={`${concept}|${metric}`}>
+                                  <td>{metric}</td>
+                                  <td>{cell.n1}</td>
+                                  <td>{fmtPct(cell.p1)}</td>
+                                  <td>{cell.n2}</td>
+                                  <td>{fmtPct(cell.p2)}</td>
+                                  <td>{fmtSigned(cell.diff)}</td>
+                                  <td>
+                                    {cell.lower === null
+                                      ? "—"
+                                      : `[${String(cell.lower).replace(".", ",")}; ${String(cell.upper).replace(
+                                          ".",
+                                          ","
+                                        )}]`}
+                                  </td>
+                                  {waveResult.mode !== "independent" && (
+                                    <td>
+                                      {cell.b} / {cell.c}
+                                    </td>
+                                  )}
+                                  <td>{cell.p_value === null ? "—" : String(cell.p_value).replace(".", ",")}</td>
+                                  <td>
+                                    <span className={`flag ${FLAG_CLASS[cell.flag] || "flag-none"}`}>{cell.flag}</span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

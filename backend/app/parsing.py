@@ -260,14 +260,10 @@ def read_matrix(filename: Optional[str], content: bytes) -> list:
     return [[str(value) for value in row] for row in frame.values.tolist()]
 
 
-def build_dataframe(matrix: list, structure: dict, settings: Optional[dict] = None):
-    import pandas as pd
-
-    settings = settings or {}
-    columns = structure["columns"]
+def dataframe_columns(structure: dict) -> list:
     headers = []
     seen: dict = {}
-    for column in columns:
+    for column in structure["columns"]:
         name = column["name"] or f"col_{column['index']}"
         if name in seen:
             seen[name] += 1
@@ -275,6 +271,15 @@ def build_dataframe(matrix: list, structure: dict, settings: Optional[dict] = No
         else:
             seen[name] = 0
         headers.append(name)
+    return headers
+
+
+def build_dataframe(matrix: list, structure: dict, settings: Optional[dict] = None):
+    import pandas as pd
+
+    settings = settings or {}
+    columns = structure["columns"]
+    headers = dataframe_columns(structure)
     rows = matrix[structure["data_start"] :]
     df = pd.DataFrame(rows, columns=headers)
     df = df.loc[:, (df != "").any(axis=0)]

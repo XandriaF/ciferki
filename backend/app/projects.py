@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
 from .analysis.top2 import compute_top2
+from .analysis.waves import compare_waves
 from .auth import current_user
 from .db import UPLOADS_DIR, connect, utcnow
 from .export import build_project_export
@@ -296,6 +297,50 @@ def _compute(project: dict):
     return df, structure, history
 
 
+def _previous_wave_frame(project: dict, settings: dict):
+    prev = next((f for f in _project_files(project["id"]) if f["role"] == "previous_wave"), None)
+    if prev is None:
+        raise HTTPException(400, "Привяжите файл предыдущей волны (роль «Предыдущая волна»)")
+    upload = _upload_row(prev["upload_id"])
+    if upload is None:
+        raise HTTPException(404, "Файл предыдущей волны отсутствует в архиве")
+    return _upload_dataframe(upload, settings)
+
+
+def _run_wave_compare(df: pd.DataFrame, structure: dict, project: dict, config: dict) -> dict:
+    settings = json.loads(project["settings"] or "{}")
+    prev_df, prev_structure = _previous_wave_frame(project, settings)
+    try:
+        return compare_waves(df, structure, prev_df, prev_structure, config)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+def _pool_for(project: dict, settings: dict, config: dict) -> dict:
+    prev = next((f for f in _project_files(project["id"]) if f["role"] == "previous_wave"), None)
+    if prev is None:
+        raise HTTPException(400, "Для нормы по пулу волн привяжите файл предыдущей волны (роль «Предыдущая волна»)")
+    upload = _upload_row(prev["upload_id"])
+    if upload is None:
+        raise HTTPException(404, "Файл предыдущей волны отсутствует в архиве")
+    prev_df, prev_structure = _upload_dataframe(upload, settings)
+    prev_result = compute_top2(
+        prev_df,
+        prev_structure,
+        {
+            "concept_map": config.get("concept_map", {}),
+            "metrics": config.get("metrics", []),
+            "norm_mode": "q3",
+        },
+    )
+    pool: dict = {}
+    for concept_cells in prev_result["cells"].values():
+        for metric, cell in concept_cells.items():
+            if cell["pct"] is not None:
+                pool.setdefault(metric, []).append(cell["pct"])
+    return pool
+
+
 @router.get("")
 def list_projects(_: dict = Depends(current_user)) -> dict:
     conn = connect()
@@ -559,10 +604,21 @@ def run_task(project_id: int, payload: TaskPayload, user: dict = Depends(current
     project = _project(project_id)
     df, structure, history = _compute(project)
     if payload.task == "top2_norms":
-        result = compute_top2(df, structure, payload.config)
+        pool = None
+        if payload.config.get("norm_mode") in ("pool_q3", "pool_median"):
+            settings = json.loads(project["settings"] or "{}")
+            pool = _pool_for(project, settings, payload.config)
+        result = compute_top2(df, structure, payload.config, pool)
         summary = f"Top2 и нормы: {len(result['concepts'])} концептов × {len(result['metrics'])} метрик"
+    elif payload.task == "wave_compare":
+        result = _run_wave_compare(df, structure, project, payload.config)
+        summary = (
+            f"Сравнение волн ({result['mode']}): "
+            f"{len(result['concepts'])} концептов × {len(result['metrics'])} метрик"
+        )
     else:
         raise HTTPException(400, "Неизвестная задача")
+    result.pop("_frames", None)
     if payload.save:
         position = (history[-1]["position"] + 1) if history else 1
         conn = connect()
@@ -642,8 +698,16 @@ def export_project(project_id: int, payload: ExportPayload, _: dict = Depends(cu
     task = None
     if payload.task and payload.task.get("task") == "top2_norms":
         config = payload.task.get("config", {})
-        result = compute_top2(df, structure, config)
+        pool = None
+        if config.get("norm_mode") in ("pool_q3", "pool_median"):
+            settings = json.loads(project["settings"] or "{}")
+            pool = _pool_for(project, settings, config)
+        result = compute_top2(df, structure, config, pool)
         task = {"task": "top2_norms", "config": config, "result": result}
+    elif payload.task and payload.task.get("task") == "wave_compare":
+        config = payload.task.get("config", {})
+        result = _run_wave_compare(df, structure, project, config)
+        task = {"task": "wave_compare", "config": config, "result": result, "frames": result.pop("_frames", {})}
     content = build_project_export(project["name"], df, structure, history, payload.column, task)
     return Response(
         content=content,

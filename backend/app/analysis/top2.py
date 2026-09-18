@@ -39,12 +39,22 @@ def concept_metric_columns(structure: dict, metrics: list, concept_map: dict) ->
     return triples
 
 
-def compute_top2(df: pd.DataFrame, structure: dict, config: dict) -> dict:
+def _norm_value(values: list, percentile: float):
+    clean = [float(value) for value in values if value is not None and not np.isnan(value)]
+    if not clean:
+        return None
+    if percentile == 50:
+        return round(float(np.median(clean)), 1)
+    return round(float(np.percentile(clean, percentile, method="linear")), 1)
+
+
+def compute_top2(df: pd.DataFrame, structure: dict, config: dict, pool: dict = None) -> dict:
     concept_map = config.get("concept_map", {})
     metrics = config.get("metrics", [])
     alpha = float(config.get("alpha", 0.05))
     norm_mode = config.get("norm_mode", "q3")
     manual_norms = config.get("manual_norms", {}) or {}
+    pool = pool or {}
 
     triples = concept_metric_columns(structure, metrics, concept_map)
     cells: dict = {}
@@ -72,9 +82,12 @@ def compute_top2(df: pd.DataFrame, structure: dict, config: dict) -> dict:
         if norm_mode == "manual":
             value = manual_norms.get(metric)
             norms[metric] = float(value) if value not in (None, "") else None
-        else:
-            values = [v for v in pct_by_metric.get(metric, []) if v is not None and not np.isnan(v)]
-            norms[metric] = round(float(np.percentile(values, 75, method="linear")), 1) if values else None
+            continue
+        values = list(pct_by_metric.get(metric, []))
+        if norm_mode in ("pool_q3", "pool_median"):
+            values += list(pool.get(metric, []))
+        percentile = 50 if norm_mode in ("median", "pool_median") else 75
+        norms[metric] = _norm_value(values, percentile)
 
     for concept_cells in cells.values():
         for metric, cell in concept_cells.items():

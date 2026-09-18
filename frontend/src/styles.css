@@ -359,6 +359,17 @@ button.secondary,
   gap: 8px 20px;
 }
 
+.metric-map-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.metric-map-row select {
+  max-width: 320px;
+}
+
 .metric-row td {
   background: #f0f3f6;
   font-weight: 600;
