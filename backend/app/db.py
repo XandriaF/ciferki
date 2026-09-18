@@ -73,6 +73,16 @@ def init_db() -> None:
                 created_by INTEGER NOT NULL,
                 created_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS project_files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL,
+                upload_id INTEGER NOT NULL,
+                role TEXT NOT NULL DEFAULT 'main',
+                key_column TEXT NOT NULL DEFAULT '',
+                wave_label TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL
+            );
             """
         )
         upload_columns = [row["name"] for row in conn.execute("PRAGMA table_info(uploads)")]

@@ -317,3 +317,111 @@ button.secondary,
   color: #14532d;
   font-weight: 600;
 }
+
+.task-cards {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.task-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  width: 320px;
+  cursor: pointer;
+  background: #fff;
+}
+
+.task-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.task-card.disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.task-card p {
+  margin: 6px 0 0;
+}
+
+.task-config h4 {
+  margin: 16px 0 8px;
+  font-size: 14px;
+}
+
+.metrics-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.metric-row td {
+  background: #f0f3f6;
+  font-weight: 600;
+}
+
+.flag {
+  padding: 1px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.flag-up {
+  background: #d8f0e2;
+  color: #1a7f4b;
+}
+
+.flag-down {
+  background: #fdeaea;
+  color: #b91c1c;
+}
+
+.flag-neutral {
+  background: #f2f4f6;
+  color: #5b6770;
+}
+
+.flag-none {
+  background: #fff;
+  color: #9aa5b1;
+  border: 1px solid var(--border);
+}
+
+.step-item {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+}
+
+.step-item:last-child {
+  border-bottom: none;
+}
+
+.match-block {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.match-block h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.table .actions {
+  white-space: nowrap;
+}
+
+.table .actions .link {
+  font-size: 13px;
+}
+
+.actions button + button,
+.actions a + button,
+.actions button + a {
+  margin-left: 12px;
+}

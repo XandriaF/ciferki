@@ -1,5 +1,4 @@
 import json
-import math
 from typing import Optional
 
 import numpy as np
@@ -7,6 +6,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
+from .analysis.top2 import compute_top2
 from .auth import current_user
 from .db import UPLOADS_DIR, connect, utcnow
 from .export import build_project_export
@@ -28,13 +28,45 @@ OP_LABELS = {
 
 class ProjectPayload(BaseModel):
     name: str
-    upload_id: int
+    upload_id: Optional[int] = None
     settings: dict = {}
+
+
+class FilePayload(BaseModel):
+    upload_id: int
+    role: str = "main"
+    key_column: str = ""
+    wave_label: str = ""
+
+
+class FileUpdatePayload(BaseModel):
+    key_column: Optional[str] = None
+    role: Optional[str] = None
+    wave_label: Optional[str] = None
 
 
 class StepPayload(BaseModel):
     type: str = "filter"
     params: dict = {}
+
+
+class MatchPayload(BaseModel):
+    main_file_id: int
+    demo_file_id: int
+    main_key: str
+    demo_key: str
+    only_complete: bool = True
+
+
+class TaskPayload(BaseModel):
+    task: str
+    config: dict = {}
+    save: bool = True
+
+
+class ExportPayload(BaseModel):
+    column: Optional[str] = None
+    task: Optional[dict] = None
 
 
 def json_value(value):
@@ -78,24 +110,61 @@ def _steps(project_id: int) -> list:
     return [dict(row) for row in rows]
 
 
-def _base_dataframe(project: dict):
+def _project_files(project_id: int) -> list:
     conn = connect()
     try:
-        upload = conn.execute("SELECT * FROM uploads WHERE id = ?", (project["upload_id"],)).fetchone()
+        rows = conn.execute(
+            """
+            SELECT pf.id, pf.project_id, pf.upload_id, pf.role, pf.key_column, pf.wave_label, pf.created_at,
+                   up.filename, up.rows, up.columns, up.uploaded_at, up.structure
+            FROM project_files pf LEFT JOIN uploads up ON up.id = pf.upload_id
+            WHERE pf.project_id = ? ORDER BY pf.id
+            """,
+            (project_id,),
+        ).fetchall()
     finally:
         conn.close()
-    if upload is None:
-        raise HTTPException(404, "Исходный файл не найден")
-    path = UPLOADS_DIR / upload["stored_name"]
+    files = []
+    for row in rows:
+        item = dict(row)
+        try:
+            item["structure"] = json.loads(item["structure"]) if item["structure"] else None
+        except (TypeError, ValueError):
+            item["structure"] = None
+        files.append(item)
+    return files
+
+
+def _upload_row(upload_id: int):
+    conn = connect()
+    try:
+        return conn.execute("SELECT * FROM uploads WHERE id = ?", (upload_id,)).fetchone()
+    finally:
+        conn.close()
+
+
+def _upload_dataframe(upload_row, settings: dict):
+    path = UPLOADS_DIR / upload_row["stored_name"]
     if not path.exists():
         raise HTTPException(404, "Файл отсутствует в архиве")
     try:
-        matrix = read_matrix(upload["filename"], path.read_bytes())
+        matrix = read_matrix(upload_row["filename"], path.read_bytes())
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    structure = json.loads(upload["structure"]) if upload["structure"] else analyze_table(matrix)
-    settings = json.loads(project["settings"] or "{}")
-    return build_dataframe(matrix, structure, settings), structure
+    structure = json.loads(upload_row["structure"]) if upload_row["structure"] else analyze_table(matrix)
+    file_settings = (settings.get("files", {}) or {}).get(str(upload_row["id"]), {})
+    types = file_settings.get("types", settings.get("types", {}))
+    return build_dataframe(matrix, structure, {"types": types}), structure
+
+
+def _main_file(project: dict):
+    files = _project_files(project["id"])
+    for file in files:
+        if file["role"] == "main":
+            return file
+    if project.get("upload_id"):
+        return {"id": None, "upload_id": project["upload_id"], "role": "main", "key_column": ""}
+    return None
 
 
 def _apply_filter(df: pd.DataFrame, params: dict) -> pd.DataFrame:
@@ -130,6 +199,29 @@ def _apply_filter(df: pd.DataFrame, params: dict) -> pd.DataFrame:
     return df[mask].reset_index(drop=True)
 
 
+def _apply_match(df: pd.DataFrame, params: dict, project: dict, settings: dict) -> pd.DataFrame:
+    main_key = params.get("main_key")
+    if main_key not in df.columns:
+        raise HTTPException(400, f"Колонка-ключ «{main_key}» не найдена в основном файле")
+    demo_file = next((f for f in _project_files(project["id"]) if f["id"] == params.get("demo_file_id")), None)
+    if demo_file is None:
+        raise HTTPException(400, "Файл для мэтчинга не найден в проекте")
+    demo_upload = _upload_row(demo_file["upload_id"])
+    if demo_upload is None:
+        raise HTTPException(404, "Файл для мэтчинга отсутствует в архиве")
+    demo_df, _ = _upload_dataframe(demo_upload, settings)
+    demo_key = params.get("demo_key") or demo_file["key_column"]
+    if demo_key not in demo_df.columns:
+        raise HTTPException(400, f"Колонка-ключ «{demo_key}» не найдена в файле мэтчинга")
+    if params.get("only_complete"):
+        status_column = next((c for c in demo_df.columns if c.lower() == "status"), None)
+        if status_column:
+            demo_df = demo_df[demo_df[status_column].astype(str).str.lower().isin(["complete", "completed"])]
+    keys = set(demo_df[demo_key].astype(str).str.strip().str.lower())
+    mask = df[main_key].astype(str).str.strip().str.lower().isin(keys)
+    return df[mask].reset_index(drop=True)
+
+
 def _filter_summary(params: dict, before: int, after: int) -> str:
     column = params.get("column", "?")
     op = params.get("op", "eq")
@@ -145,13 +237,29 @@ def _filter_summary(params: dict, before: int, after: int) -> str:
     return f"{text} — осталось {after} из {before}"
 
 
+def _match_summary(params: dict, before: int, after: int, project: dict) -> str:
+    demo_file = next((f for f in _project_files(project["id"]) if f["id"] == params.get("demo_file_id")), None)
+    filename = demo_file["filename"] if demo_file else "?"
+    return f"Мэтчинг с «{filename}» по «{params.get('demo_key')}» — осталось {after} из {before}"
+
+
 def _compute(project: dict):
-    df, structure = _base_dataframe(project)
+    settings = json.loads(project["settings"] or "{}")
+    main = _main_file(project)
+    if main is None:
+        raise HTTPException(400, "К проекту ещё не привязан основной файл")
+    upload = _upload_row(main["upload_id"])
+    if upload is None:
+        raise HTTPException(404, "Основной файл не найден в архиве")
+    df, structure = _upload_dataframe(upload, settings)
     history = []
     for step in _steps(project["id"]):
         before = int(len(df))
         params = json.loads(step["params"] or "{}")
-        df = _apply_filter(df, params)
+        if step["type"] == "match":
+            df = _apply_match(df, params, project, settings)
+        elif step["type"] == "filter":
+            df = _apply_filter(df, params)
         history.append(
             {
                 "id": step["id"],
@@ -174,10 +282,12 @@ def list_projects(_: dict = Depends(current_user)) -> dict:
         rows = conn.execute(
             """
             SELECT p.id, p.name, p.created_at, p.updated_at,
-                   up.filename, u.display_name AS author,
-                   (SELECT COUNT(*) FROM steps s WHERE s.project_id = p.id) AS steps_count
+                   u.display_name AS author,
+                   (SELECT COUNT(*) FROM steps s WHERE s.project_id = p.id) AS steps_count,
+                   (SELECT COUNT(*) FROM project_files f WHERE f.project_id = p.id) AS files_count,
+                   (SELECT up.filename FROM project_files f LEFT JOIN uploads up ON up.id = f.upload_id
+                     WHERE f.project_id = p.id AND f.role = 'main' ORDER BY f.id LIMIT 1) AS filename
             FROM projects p
-            LEFT JOIN uploads up ON up.id = p.upload_id
             LEFT JOIN users u ON u.id = p.created_by
             ORDER BY p.id DESC
             """
@@ -192,30 +302,54 @@ def create_project(payload: ProjectPayload, user: dict = Depends(current_user)) 
     name = payload.name.strip() or "Без названия"
     conn = connect()
     try:
-        if conn.execute("SELECT 1 FROM uploads WHERE id = ?", (payload.upload_id,)).fetchone() is None:
-            raise HTTPException(404, "Файл не найден")
         cursor = conn.execute(
             "INSERT INTO projects (name, upload_id, settings, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (name, payload.upload_id, json.dumps(payload.settings, ensure_ascii=False), user["id"], utcnow(), utcnow()),
+            (name, payload.upload_id or 0, json.dumps(payload.settings, ensure_ascii=False), user["id"], utcnow(), utcnow()),
         )
-        conn.commit()
         project_id = cursor.lastrowid
+        if payload.upload_id:
+            conn.execute(
+                "INSERT INTO project_files (project_id, upload_id, role, key_column, wave_label, created_at) VALUES (?, ?, 'main', '', '', ?)",
+                (project_id, payload.upload_id, utcnow()),
+            )
+        conn.commit()
     finally:
         conn.close()
     return {"id": project_id}
 
 
+@router.delete("/{project_id}")
+def delete_project(project_id: int, _: dict = Depends(current_user)) -> dict:
+    conn = connect()
+    try:
+        conn.execute("DELETE FROM steps WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM project_files WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
 @router.get("/{project_id}")
 def get_project(project_id: int, _: dict = Depends(current_user)) -> dict:
     project = _project(project_id)
+    files = _project_files(project_id)
+    main = _main_file(project)
+    if main is None:
+        return {
+            "project": {
+                "id": project["id"],
+                "name": project["name"],
+                "settings": json.loads(project["settings"] or "{}"),
+                "created_at": project["created_at"],
+            },
+            "files": files,
+            "main_structure": None,
+            "history": [],
+            "rows": 0,
+        }
     df, structure, history = _compute(project)
-    conn = connect()
-    try:
-        upload = conn.execute(
-            "SELECT filename, rows, uploaded_at FROM uploads WHERE id = ?", (project["upload_id"],)
-        ).fetchone()
-    finally:
-        conn.close()
     return {
         "project": {
             "id": project["id"],
@@ -223,10 +357,99 @@ def get_project(project_id: int, _: dict = Depends(current_user)) -> dict:
             "settings": json.loads(project["settings"] or "{}"),
             "created_at": project["created_at"],
         },
-        "upload": dict(upload) if upload else None,
-        "structure": structure,
+        "files": files,
+        "main_structure": structure,
         "history": history,
         "rows": int(len(df)),
+    }
+
+
+@router.post("/{project_id}/files")
+def add_file(project_id: int, payload: FilePayload, _: dict = Depends(current_user)) -> dict:
+    _project(project_id)
+    conn = connect()
+    try:
+        if conn.execute("SELECT 1 FROM uploads WHERE id = ?", (payload.upload_id,)).fetchone() is None:
+            raise HTTPException(404, "Файл не найден в архиве")
+        cursor = conn.execute(
+            "INSERT INTO project_files (project_id, upload_id, role, key_column, wave_label, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (project_id, payload.upload_id, payload.role, payload.key_column, payload.wave_label, utcnow()),
+        )
+        conn.commit()
+        file_id = cursor.lastrowid
+    finally:
+        conn.close()
+    return {"id": file_id}
+
+
+@router.patch("/{project_id}/files/{file_id}")
+def update_file(project_id: int, file_id: int, payload: FileUpdatePayload, _: dict = Depends(current_user)) -> dict:
+    conn = connect()
+    try:
+        row = conn.execute(
+            "SELECT * FROM project_files WHERE id = ? AND project_id = ?", (file_id, project_id)
+        ).fetchone()
+        if row is None:
+            raise HTTPException(404, "Файл не найден")
+        key_column = payload.key_column if payload.key_column is not None else row["key_column"]
+        role = payload.role if payload.role is not None else row["role"]
+        wave_label = payload.wave_label if payload.wave_label is not None else row["wave_label"]
+        conn.execute(
+            "UPDATE project_files SET key_column = ?, role = ?, wave_label = ? WHERE id = ?",
+            (key_column, role, wave_label, file_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+@router.delete("/{project_id}/files/{file_id}")
+def delete_file(project_id: int, file_id: int, _: dict = Depends(current_user)) -> dict:
+    conn = connect()
+    try:
+        conn.execute("DELETE FROM project_files WHERE id = ? AND project_id = ?", (file_id, project_id))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+@router.post("/{project_id}/match/preview")
+def match_preview(project_id: int, payload: MatchPayload, _: dict = Depends(current_user)) -> dict:
+    project = _project(project_id)
+    settings = json.loads(project["settings"] or "{}")
+    files = _project_files(project_id)
+    main_file = next((f for f in files if f["id"] == payload.main_file_id), None)
+    demo_file = next((f for f in files if f["id"] == payload.demo_file_id), None)
+    if main_file is None or demo_file is None:
+        raise HTTPException(404, "Файлы не найдены в проекте")
+    main_upload = _upload_row(main_file["upload_id"])
+    demo_upload = _upload_row(demo_file["upload_id"])
+    if main_upload is None or demo_upload is None:
+        raise HTTPException(404, "Файлы отсутствуют в архиве")
+    main_df, _ = _upload_dataframe(main_upload, settings)
+    demo_df, _ = _upload_dataframe(demo_upload, settings)
+    if payload.main_key not in main_df.columns:
+        raise HTTPException(400, f"Колонка «{payload.main_key}» не найдена в основном файле")
+    if payload.demo_key not in demo_df.columns:
+        raise HTTPException(400, f"Колонка «{payload.demo_key}» не найдена в файле мэтчинга")
+    if payload.only_complete:
+        status_column = next((c for c in demo_df.columns if c.lower() == "status"), None)
+        if status_column:
+            demo_df = demo_df[demo_df[status_column].astype(str).str.lower().isin(["complete", "completed"])]
+    main_set = set(main_df[payload.main_key].astype(str).str.strip().str.lower())
+    demo_set = set(demo_df[payload.demo_key].astype(str).str.strip().str.lower())
+    return {
+        "main_total": int(len(main_df)),
+        "demo_total": int(len(demo_df)),
+        "main_unique": len(main_set),
+        "demo_unique": len(demo_set),
+        "matched": len(main_set & demo_set),
+        "only_main": len(main_set - demo_set),
+        "only_demo": len(demo_set - main_set),
+        "only_main_sample": sorted(main_set - demo_set)[:10],
+        "only_demo_sample": sorted(demo_set - main_set)[:10],
     }
 
 
@@ -250,19 +473,24 @@ def preview_step(project_id: int, payload: StepPayload, _: dict = Depends(curren
 @router.post("/{project_id}/steps")
 def add_step(project_id: int, payload: StepPayload, user: dict = Depends(current_user)) -> dict:
     project = _project(project_id)
-    if payload.type != "filter":
-        raise HTTPException(400, "Пока поддерживаются только шаги-фильтры")
+    settings = json.loads(project["settings"] or "{}")
     df, _structure, history = _compute(project)
     before = int(len(df))
-    result = _apply_filter(df, payload.params)
+    if payload.type == "filter":
+        result = _apply_filter(df, payload.params)
+        summary = _filter_summary(payload.params, before, int(len(result)))
+    elif payload.type == "match":
+        result = _apply_match(df, payload.params, project, settings)
+        summary = _match_summary(payload.params, before, int(len(result)), project)
+    else:
+        raise HTTPException(400, "Неизвестный тип шага")
     after = int(len(result))
-    summary = _filter_summary(payload.params, before, after)
     position = (history[-1]["position"] + 1) if history else 1
     conn = connect()
     try:
         conn.execute(
             "INSERT INTO steps (project_id, position, type, params, summary, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (project_id, position, "filter", json.dumps(payload.params, ensure_ascii=False), summary, user["id"], utcnow()),
+            (project_id, position, payload.type, json.dumps(payload.params, ensure_ascii=False), summary, user["id"], utcnow()),
         )
         conn.execute("UPDATE projects SET updated_at = ? WHERE id = ?", (utcnow(), project_id))
         conn.commit()
@@ -286,6 +514,38 @@ def delete_step(project_id: int, step_id: int, _: dict = Depends(current_user)) 
     finally:
         conn.close()
     return {"ok": True}
+
+
+@router.post("/{project_id}/tasks/run")
+def run_task(project_id: int, payload: TaskPayload, user: dict = Depends(current_user)) -> dict:
+    project = _project(project_id)
+    df, structure, history = _compute(project)
+    if payload.task == "top2_norms":
+        result = compute_top2(df, structure, payload.config)
+        summary = f"Top2 и нормы: {len(result['concepts'])} концептов × {len(result['metrics'])} метрик"
+    else:
+        raise HTTPException(400, "Неизвестная задача")
+    if payload.save:
+        position = (history[-1]["position"] + 1) if history else 1
+        conn = connect()
+        try:
+            conn.execute(
+                "INSERT INTO steps (project_id, position, type, params, summary, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    project_id,
+                    position,
+                    "task",
+                    json.dumps({"task": payload.task, "config": payload.config}, ensure_ascii=False),
+                    summary,
+                    user["id"],
+                    utcnow(),
+                ),
+            )
+            conn.execute("UPDATE projects SET updated_at = ? WHERE id = ?", (utcnow(), project_id))
+            conn.commit()
+        finally:
+            conn.close()
+    return {"result": result, "summary": summary, "rows": int(len(df))}
 
 
 @router.get("/{project_id}/values")
@@ -337,11 +597,16 @@ def frequencies(project_id: int, column: str, _: dict = Depends(current_user)) -
     }
 
 
-@router.get("/{project_id}/export")
-def export_project(project_id: int, column: Optional[str] = None, _: dict = Depends(current_user)):
+@router.post("/{project_id}/export")
+def export_project(project_id: int, payload: ExportPayload, _: dict = Depends(current_user)):
     project = _project(project_id)
     df, structure, history = _compute(project)
-    content = build_project_export(project["name"], df, structure, history, column)
+    task = None
+    if payload.task and payload.task.get("task") == "top2_norms":
+        config = payload.task.get("config", {})
+        result = compute_top2(df, structure, config)
+        task = {"task": "top2_norms", "config": config, "result": result}
+    content = build_project_export(project["name"], df, structure, history, payload.column, task)
     return Response(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
