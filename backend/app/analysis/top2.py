@@ -2,7 +2,16 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from ..parsing import TOP2_MIN_BY_SCALE
+
 TOP2_MIN = 4
+
+
+def top2_min_for(structure: dict, column_name: str) -> int:
+    for column in structure["columns"]:
+        if column["name"] == column_name:
+            return TOP2_MIN_BY_SCALE.get(column.get("scale") or "", TOP2_MIN)
+    return TOP2_MIN
 
 
 def wilson_interval(x: int, n: int, conf: float = 0.95):
@@ -42,13 +51,15 @@ def compute_top2(df: pd.DataFrame, structure: dict, config: dict) -> dict:
     pct_by_metric: dict = {}
     for concept_name, metric, column_name in triples:
         series = pd.to_numeric(df[column_name], errors="coerce").dropna()
+        minimum = top2_min_for(structure, column_name)
         n = int(len(series))
-        x = int((series >= TOP2_MIN).sum())
+        x = int((series >= minimum).sum())
         pct = round(x / n * 100, 1) if n else None
         lower, upper = wilson_interval(x, n, 1 - alpha)
         cells.setdefault(concept_name, {})[metric] = {
             "n": n,
             "top2": x,
+            "top2_min": minimum,
             "pct": pct,
             "lower": round(lower * 100, 1) if lower is not None else None,
             "upper": round(upper * 100, 1) if upper is not None else None,

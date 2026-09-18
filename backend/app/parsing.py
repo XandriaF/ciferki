@@ -29,9 +29,44 @@ AGREEMENT_SCALE = {
     "Ни то, ни другое": 3,
     "Скорее НЕ согласен(а)": 2,
     "Совершенно НЕ согласен(а)": 1,
+    "Полностью согласен(на)": 5,
+    "Скорее согласен(на)": 4,
+    "Ни согласен(на), ни не согласен(на)": 3,
+    "Скорее НЕ согласен(на)": 2,
+    "Совершенно НЕ согласен(на)": 1,
+    "Полностью согласен(а)": 5,
+    "Скорее согласен(а)": 4,
+    "Ни согласен(а), ни не согласен(а)": 3,
+    "Скорее НЕ согласен(а)": 2,
+    "Совершенно НЕ согласен(а)": 1,
+    "Точно НЕ согласен(на)": 1,
 }
 
+PRO_ME_SCALE = {
+    "Это точно НЕ обо мне": 1,
+    "Это скорее НЕ обо мне": 2,
+    "Это скорее обо мне": 3,
+    "Это точно обо мне": 4,
+}
+
+PRO_ME3_SCALE = {
+    "Нет, это не про меня": 1,
+    "Это частично про меня": 2,
+    "Да, это точно про меня": 3,
+}
+
+MISSING_VALUES = {
+    "Затрудняюсь ответить",
+    "Затрудняюсь ответить(ась)",
+    "Не знаю",
+    "Нет ответа",
+    "Отказ от ответа",
+}
+
+TOP2_MIN_BY_SCALE = {"agreement5": 4, "pro_me4": 3, "pro_me3": 2}
+
 MATRIX_RE = re.compile(r"^(\d+)\.\s*Matrix[,，]?\s*(.*)$")
+BASE_MATRIX_RE = re.compile(r"^[Qq](\d+)_r(\d+)$")
 CHOICE_RE = re.compile(r"^(\d+)\.\s*Choice")
 QUESTION_RE = re.compile(r"^\d+\.\s*(Choice|Matrix)")
 
@@ -56,9 +91,17 @@ def _sample_values(matrix: list, index: int, data_start: int, limit: int = 30) -
     return values
 
 
-def _sample_in_scale(matrix: list, index: int, data_start: int) -> bool:
+def _matrix_scale(matrix: list, index: int, data_start: int) -> str:
     values = _sample_values(matrix, index, data_start, 30)
-    return bool(values) and all(value in AGREEMENT_SCALE for value in values)
+    if not values:
+        return "numeric"
+    if all(value in AGREEMENT_SCALE or value in MISSING_VALUES for value in values):
+        return "agreement5"
+    if all(value in PRO_ME_SCALE or value in MISSING_VALUES for value in values):
+        return "pro_me4"
+    if all(value in PRO_ME3_SCALE or value in MISSING_VALUES for value in values):
+        return "pro_me3"
+    return "numeric"
 
 
 def find_header_row(matrix: list, max_scan: int = 12) -> int:
@@ -136,7 +179,18 @@ def classify_columns(headers: list, labels: Optional[list], matrix: list, data_s
             column["type"] = "matrix"
             column["group"] = f"Q{matrix_match.group(1)}"
             column["option"] = matrix_match.group(2).strip()
-            column["scale"] = "agreement5" if _sample_in_scale(matrix, i, data_start) else "numeric"
+            column["scale"] = _matrix_scale(matrix, i, data_start)
+            columns.append(column)
+            continue
+        base_match = BASE_MATRIX_RE.match(name)
+        if base_match:
+            option = label
+            if " - " in option:
+                option = option.rsplit(" - ", 1)[1]
+            column["type"] = "matrix"
+            column["group"] = f"Q{base_match.group(1)}"
+            column["option"] = option.strip() or name
+            column["scale"] = _matrix_scale(matrix, i, data_start)
             columns.append(column)
             continue
         if "Choice" in name:
@@ -230,7 +284,14 @@ def build_dataframe(matrix: list, structure: dict, settings: Optional[dict] = No
             continue
         column_type = type_overrides.get(column["name"], column["type"])
         if column_type == "matrix":
-            mapping = scale if column.get("scale") == "agreement5" else None
+            if column.get("scale") == "agreement5":
+                mapping = scale
+            elif column.get("scale") == "pro_me4":
+                mapping = PRO_ME_SCALE
+            elif column.get("scale") == "pro_me3":
+                mapping = PRO_ME3_SCALE
+            else:
+                mapping = None
             if mapping:
                 df[name] = df[name].map(lambda value: mapping.get(value.strip()))
                 df[name] = pd.to_numeric(df[name], errors="coerce")

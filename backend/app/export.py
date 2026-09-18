@@ -6,7 +6,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from .analysis.top2 import concept_metric_columns
+from .analysis.top2 import concept_metric_columns, top2_min_for
 
 FLAG_FILLS = {
     "выше": PatternFill("solid", fgColor="D8F0E2"),
@@ -101,10 +101,11 @@ def _add_top2_sheet(wb: Workbook, df: pd.DataFrame, structure: dict, config: dic
         for concept_name, column_name in metric_rows:
             letter = column_letters[column_name]
             data_range = f"'Данные'!${letter}$2:${letter}${last_data_row}"
+            minimum = top2_min_for(structure, column_name)
             sheet.cell(row=row, column=1, value=concept_name)
             sheet.cell(row=row, column=2, value=metric)
             sheet.cell(row=row, column=3, value=f"=COUNT({data_range})")
-            sheet.cell(row=row, column=4, value=f'=COUNTIF({data_range},">=4")')
+            sheet.cell(row=row, column=4, value=f'=COUNTIF({data_range},">={minimum}")')
             sheet.cell(row=row, column=5, value=f'=IF(C{row}=0,"",D{row}/C{row})')
             wilson_base = f"(E{row}+$L$1^2/(2*C{row}))/(1+$L$1^2/C{row})"
             wilson_margin = f"$L$1*SQRT(E{row}*(1-E{row})/C{row}+$L$1^2/(4*C{row}^2))/(1+$L$1^2/C{row})"

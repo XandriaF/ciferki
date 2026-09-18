@@ -199,6 +199,17 @@ def _apply_filter(df: pd.DataFrame, params: dict) -> pd.DataFrame:
     return df[mask].reset_index(drop=True)
 
 
+def _only_complete(df: pd.DataFrame) -> pd.DataFrame:
+    status_column = next((c for c in df.columns if c.lower() == "status"), None)
+    if not status_column:
+        return df
+    values = df[status_column].astype(str).str.strip().str.lower()
+    mask = values.isin(["complete", "completed"])
+    if not mask.any():
+        return df
+    return df[mask]
+
+
 def _apply_match(df: pd.DataFrame, params: dict, project: dict, settings: dict) -> pd.DataFrame:
     main_key = params.get("main_key")
     if main_key not in df.columns:
@@ -214,9 +225,7 @@ def _apply_match(df: pd.DataFrame, params: dict, project: dict, settings: dict) 
     if demo_key not in demo_df.columns:
         raise HTTPException(400, f"Колонка-ключ «{demo_key}» не найдена в файле мэтчинга")
     if params.get("only_complete"):
-        status_column = next((c for c in demo_df.columns if c.lower() == "status"), None)
-        if status_column:
-            demo_df = demo_df[demo_df[status_column].astype(str).str.lower().isin(["complete", "completed"])]
+        demo_df = _only_complete(demo_df)
     keys = set(demo_df[demo_key].astype(str).str.strip().str.lower())
     mask = df[main_key].astype(str).str.strip().str.lower().isin(keys)
     return df[mask].reset_index(drop=True)
@@ -435,9 +444,7 @@ def match_preview(project_id: int, payload: MatchPayload, _: dict = Depends(curr
     if payload.demo_key not in demo_df.columns:
         raise HTTPException(400, f"Колонка «{payload.demo_key}» не найдена в файле мэтчинга")
     if payload.only_complete:
-        status_column = next((c for c in demo_df.columns if c.lower() == "status"), None)
-        if status_column:
-            demo_df = demo_df[demo_df[status_column].astype(str).str.lower().isin(["complete", "completed"])]
+        demo_df = _only_complete(demo_df)
     main_set = set(main_df[payload.main_key].astype(str).str.strip().str.lower())
     demo_set = set(demo_df[payload.demo_key].astype(str).str.strip().str.lower())
     return {
