@@ -45,6 +45,11 @@ class FileUpdatePayload(BaseModel):
     wave_label: Optional[str] = None
 
 
+class ProjectUpdatePayload(BaseModel):
+    name: Optional[str] = None
+    settings: Optional[dict] = None
+
+
 class StepPayload(BaseModel):
     type: str = "filter"
     params: dict = {}
@@ -332,6 +337,25 @@ def create_project(payload: ProjectPayload, user: dict = Depends(current_user)) 
     finally:
         conn.close()
     return {"id": project_id}
+
+
+@router.patch("/{project_id}")
+def update_project(project_id: int, payload: ProjectUpdatePayload, _: dict = Depends(current_user)) -> dict:
+    project = _project(project_id)
+    name = payload.name.strip() if payload.name and payload.name.strip() else project["name"]
+    settings = (
+        json.dumps(payload.settings, ensure_ascii=False) if payload.settings is not None else project["settings"]
+    )
+    conn = connect()
+    try:
+        conn.execute(
+            "UPDATE projects SET name = ?, settings = ?, updated_at = ? WHERE id = ?",
+            (name, settings, utcnow(), project_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True, "name": name}
 
 
 @router.delete("/{project_id}")

@@ -61,6 +61,7 @@ export const api = {
   projects: () => apiFetch<{ projects: any[] }>("/api/projects"),
   createProject: (payload: { name: string; upload_id?: number; settings?: any }) =>
     apiFetch<{ id: number }>("/api/projects", jsonPost(payload)),
+  renameProject: (id: number, name: string) => apiFetch(`/api/projects/${id}`, jsonPatch({ name })),
   deleteProject: (id: number) => apiFetch(`/api/projects/${id}`, { method: "DELETE" }),
   project: (id: number) => apiFetch<any>(`/api/projects/${id}`),
   projectData: (id: number, limit = 200) => apiFetch<any>(`/api/projects/${id}/data?limit=${limit}`),

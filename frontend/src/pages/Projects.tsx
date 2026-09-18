@@ -36,6 +36,17 @@ export default function ProjectsPage() {
     }
   };
 
+  const rename = async (id: number, current: string) => {
+    const name = prompt("Новое название проекта", current);
+    if (!name || !name.trim() || name.trim() === current) return;
+    try {
+      await api.renameProject(id, name.trim());
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка переименования");
+    }
+  };
+
   const remove = async (id: number, name: string) => {
     if (!confirm(`Удалить проект «${name}»? Файлы останутся в архиве, но шаги и настройки проекта удалятся.`)) return;
     try {
@@ -96,6 +107,9 @@ export default function ProjectsPage() {
                 <td>{new Date(project.created_at).toLocaleString("ru-RU")}</td>
                 <td className="actions">
                   <Link to={`/project/${project.id}`}>Открыть</Link>
+                  <button className="link" onClick={() => rename(project.id, project.name)}>
+                    Переименовать
+                  </button>
                   <button className="link danger" onClick={() => remove(project.id, project.name)}>
                     Удалить
                   </button>
