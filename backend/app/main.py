@@ -7,6 +7,7 @@ from .auth import current_user, router as auth_router
 from .db import connect, init_db, utcnow
 from .security import hash_password
 from .tables import read_table
+from .projects import router as projects_router
 from .uploads import router as uploads_router
 from .users import router as users_router
 
@@ -15,6 +16,7 @@ app = FastAPI(title="Циферки", version="0.2.0")
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(uploads_router)
+app.include_router(projects_router)
 
 
 def _seed_admin() -> None:

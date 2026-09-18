@@ -235,3 +235,85 @@ button.link.danger {
 .login-card button {
   margin-top: 4px;
 }
+
+h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.button {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 6px;
+  padding: 9px 18px;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+button.secondary,
+.button.secondary {
+  background: #e8edf3;
+  color: var(--text);
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 380px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1000px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.steps {
+  padding-left: 20px;
+  margin: 0 0 16px;
+}
+
+.steps li {
+  margin-bottom: 10px;
+}
+
+.step-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.project-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.columns-table {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.analysis-result {
+  margin-top: 16px;
+}
+
+.row-links {
+  display: inline-flex;
+  gap: 12px;
+}
+
+.notice-link {
+  color: #14532d;
+  font-weight: 600;
+}

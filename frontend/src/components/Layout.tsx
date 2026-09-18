@@ -23,6 +23,7 @@ export default function Layout() {
           <div className="brand">Циферки</div>
           <nav className="nav">
             <Link to="/">Данные</Link>
+            <Link to="/projects">Проекты</Link>
             {user?.is_admin && <Link to="/users">Пользователи</Link>}
           </nav>
           <div className="user-box">

@@ -52,8 +52,32 @@ def init_db() -> None:
                 uploader_id INTEGER NOT NULL,
                 uploaded_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS projects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                upload_id INTEGER NOT NULL,
+                settings TEXT NOT NULL DEFAULT '{}',
+                created_by INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS steps (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL,
+                position INTEGER NOT NULL,
+                type TEXT NOT NULL,
+                params TEXT NOT NULL DEFAULT '{}',
+                summary TEXT NOT NULL DEFAULT '',
+                created_by INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            );
             """
         )
+        upload_columns = [row["name"] for row in conn.execute("PRAGMA table_info(uploads)")]
+        if "structure" not in upload_columns:
+            conn.execute("ALTER TABLE uploads ADD COLUMN structure TEXT NOT NULL DEFAULT ''")
         conn.commit()
     finally:
         conn.close()

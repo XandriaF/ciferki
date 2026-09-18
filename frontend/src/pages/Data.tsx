@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { AgGridReact } from "ag-grid-react";
 import type { ColDef } from "ag-grid-community";
 import "ag-grid-community/styles/ag-grid.css";
@@ -26,6 +27,7 @@ export default function DataPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [lastUpload, setLastUpload] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -50,12 +52,14 @@ export default function DataPage() {
     setBusy(true);
     setError("");
     setNotice("");
+    setLastUpload(null);
     const form = new FormData();
     form.append("file", file);
     try {
       const data = await api.uploadFile(form);
       if (fileRef.current) fileRef.current.value = "";
       await load();
+      setLastUpload(data.id);
       setNotice(`Загружено: ${data.filename} (${data.rows} строк, ${data.columns} колонок)`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка загрузки");
@@ -73,10 +77,15 @@ export default function DataPage() {
     { field: "size", headerName: "Размер", width: 110, valueFormatter: (p) => formatSize(p.value) },
     {
       headerName: "",
-      width: 120,
+      width: 220,
       sortable: false,
       filter: false,
-      cellRenderer: (p: any) => <a href={`/api/uploads/${p.data.id}/download`}>Скачать</a>,
+      cellRenderer: (p: any) => (
+        <span className="row-links">
+          <Link to={`/upload/${p.data.id}`}>Настроить</Link>
+          <a href={`/api/uploads/${p.data.id}/download`}>Скачать</a>
+        </span>
+      ),
     },
   ];
 
@@ -85,7 +94,8 @@ export default function DataPage() {
       <div className="card">
         <h2>Загрузка данных</h2>
         <p className="muted">
-          Файлы сохраняются в архиве — видно, кто и когда загрузил. Поддерживаются Excel (.xlsx) и CSV.
+          Файлы сохраняются в архиве — видно, кто и когда загрузил. После загрузки откроется предпросмотр: там
+          можно проверить колонки, задать типы и создать проект для пошагового анализа.
         </p>
         <div className="row">
           <input type="file" ref={fileRef} accept=".csv,.txt,.xlsx" />
@@ -94,7 +104,16 @@ export default function DataPage() {
           </button>
         </div>
         {error && <div className="error">{error}</div>}
-        {notice && <div className="notice">{notice}</div>}
+        {notice && (
+          <div className="notice">
+            {notice}{" "}
+            {lastUpload && (
+              <Link className="notice-link" to={`/upload/${lastUpload}`}>
+                Настроить и создать проект →
+              </Link>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="card">
