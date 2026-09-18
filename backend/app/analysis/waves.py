@@ -61,7 +61,7 @@ def _paired_stats(a: pd.Series, b: pd.Series, alpha: float) -> dict:
         p_value = float(1 - stats.chi2.cdf(max(chi2, 0.0), 1))
     else:
         p_value = 1.0
-    se = float(np.sqrt(max(discordant - (b_count - c_count) ** 2 / n, 0.0) / n))
+    se = float(np.sqrt(max(discordant - (b_count - c_count) ** 2 / n, 0.0)) / n)
     z_crit = float(stats.norm.ppf(1 - alpha / 2))
     if se > 0:
         lower, upper = diff - z_crit * se, diff + z_crit * se

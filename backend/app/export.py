@@ -274,7 +274,7 @@ def _add_wave_sheet(wb: Workbook, task: dict, df: pd.DataFrame, structure: dict)
                     sheet.cell(row=row, column=5, value=f"=COUNT({prev_range})")
                     sheet.cell(row=row, column=6, value=f'=IF(E{row}=0,"",COUNTIF({prev_range},">={prev_min}")/E{row})')
                     sheet.cell(row=row, column=7, value=f'=IF(OR(D{row}="",F{row}=""),"",D{row}-F{row})')
-                    se = f"SQRT(MAX({b_expr}+{c_expr}-({b_expr}-{c_expr})^2/C{row},0)/C{row})"
+                    se = f"SQRT(MAX({b_expr}+{c_expr}-({b_expr}-{c_expr})^2/C{row},0))/C{row}"
                     sheet.cell(row=row, column=8, value=f'=IF(G{row}="","",G{row}-$O$1*{se})')
                     sheet.cell(row=row, column=9, value=f'=IF(G{row}="","",G{row}+$O$1*{se})')
                     sheet.cell(
